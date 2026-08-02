@@ -6,11 +6,18 @@ import validateCsvHeaders from '../utils/validateCsvHeaders'
 import validateCsvRows from '../utils/validateCsvRows'
 import validateCsvParseErrors from '../utils/validateCsvParseErrors'
 
-function UploadDropzone() {
+type UploadDropzoneProps = {
+  parsedRows: CsvRow[]
+  onParsedRowsChange: (rows: CsvRow[]) => void
+}
+
+function UploadDropzone({
+  parsedRows,
+  onParsedRowsChange,
+}: UploadDropzoneProps) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [fileError, setFileError] = useState<string | null>(null)
   const [isDragging, setIsDragging] = useState(false)
-  const [parsedRows, setParsedRows] = useState<CsvRow[]>([])
   const [isParsing, setIsParsing] = useState(false)
 
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -39,7 +46,7 @@ function UploadDropzone() {
     setIsParsing(false)
     setSelectedFile(null)
     setFileError(error)
-    setParsedRows([])
+    onParsedRowsChange([])
   }
 
   const processFile = (file: File | null): void => {
@@ -57,7 +64,7 @@ function UploadDropzone() {
 
     setSelectedFile(file)
     setFileError(null)
-    setParsedRows([])
+    onParsedRowsChange([])
     setIsParsing(true)
 
     parseCsvFile(
@@ -75,7 +82,7 @@ function UploadDropzone() {
           return
         }
 
-        setParsedRows(results.data)
+        onParsedRowsChange(results.data)
       },
       (error) => {
         resetUploadState(`Could not read CSV: ${error.message}`)

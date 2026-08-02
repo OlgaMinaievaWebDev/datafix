@@ -1,6 +1,12 @@
 import UploadDropzone from './UploadDropzone'
+import type { CsvRow } from '../utils/parseCsvFile'
 
-function UploadScreen() {
+type UploadScreenProps = {
+  parsedRows: CsvRow[]
+  onParsedRowsChange: (rows: CsvRow[]) => void
+}
+
+function UploadScreen({ parsedRows, onParsedRowsChange }: UploadScreenProps) {
   return (
     <section
       className="mx-auto mt-10 max-w-2xl text-center sm:mt-12"
@@ -16,7 +22,10 @@ function UploadScreen() {
         Map, validate, and clean your customer data before importing it into
         your CRM.
       </p>
-      <UploadDropzone />
+      <UploadDropzone
+        parsedRows={parsedRows}
+        onParsedRowsChange={onParsedRowsChange}
+      />
     </section>
   )
 }
