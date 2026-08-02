@@ -1,18 +1,29 @@
 import { useState, type ChangeEvent, type DragEvent } from 'react'
+import type { CsvRow } from '../utils/parseCsvFile'
 import validateCsvFile from '../utils/validateCsvFile'
+import parseCsvFile from '../utils/parseCsvFile'
+import validateCsvHeaders from '../utils/validateCsvHeaders'
+import validateCsvRows from '../utils/validateCsvRows'
+import validateCsvParseErrors from '../utils/validateCsvParseErrors'
 
-function UploadDropzone() {
+type UploadDropzoneProps = {
+  parsedRows: CsvRow[]
+  onParsedRowsChange: (rows: CsvRow[]) => void
+}
+
+function UploadDropzone({
+  parsedRows,
+  onParsedRowsChange,
+}: UploadDropzoneProps) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [fileError, setFileError] = useState<string | null>(null)
   const [isDragging, setIsDragging] = useState(false)
+  const [isParsing, setIsParsing] = useState(false)
 
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] ?? null
-    const isFileCorrect = validateAndSelectFile(file)
-
-    if (file && !isFileCorrect) {
-      e.target.value = ''
-    }
+    e.target.value = ''
+    processFile(file)
   }
 
   const handleDragOver = (e: DragEvent<HTMLDivElement>) => {
@@ -24,31 +35,59 @@ function UploadDropzone() {
     e.preventDefault()
     setIsDragging(false)
     const file = e.dataTransfer.files?.[0] ?? null
-    validateAndSelectFile(file)
+    processFile(file)
   }
 
   const handleDragLeave = () => {
     setIsDragging(false)
   }
 
-  const validateAndSelectFile = (file: File | null): boolean => {
+  const resetUploadState = (error: string | null = null): void => {
+    setIsParsing(false)
+    setSelectedFile(null)
+    setFileError(error)
+    onParsedRowsChange([])
+  }
+
+  const processFile = (file: File | null): void => {
     if (!file) {
-      setSelectedFile(null)
-      setFileError(null)
-      return false
+      resetUploadState()
+      return
     }
 
     const validationError = validateCsvFile(file)
 
     if (validationError) {
-      setSelectedFile(null)
-      setFileError(validationError)
-      return false
+      resetUploadState(validationError)
+      return
     }
 
     setSelectedFile(file)
     setFileError(null)
-    return true
+    onParsedRowsChange([])
+    setIsParsing(true)
+
+    parseCsvFile(
+      file,
+      (results) => {
+        setIsParsing(false)
+
+        const parsingError =
+          validateCsvParseErrors(results.errors) ??
+          validateCsvHeaders(results.meta.fields) ??
+          validateCsvRows(results.data)
+
+        if (parsingError) {
+          resetUploadState(parsingError)
+          return
+        }
+
+        onParsedRowsChange(results.data)
+      },
+      (error) => {
+        resetUploadState(`Could not read CSV: ${error.message}`)
+      },
+    )
   }
 
   return (
@@ -76,6 +115,12 @@ function UploadDropzone() {
         Drag and drop a CSV file here, or choose a file.
       </p>
 
+      {isParsing && (
+        <p role="status" className="mt-2 text-sm font-medium text-blue-700">
+          Reading CSV...
+        </p>
+      )}
+
       {fileError && (
         <p role="alert" className="mt-3 text-sm font-medium text-red-700">
           {fileError}
@@ -93,6 +138,12 @@ function UploadDropzone() {
             ? `Selected: ${selectedFile.name}`
             : 'No file selected'}
       </p>
+
+      {parsedRows.length > 0 && (
+        <p className="mt-2 text-sm font-medium text-green-700">
+          {parsedRows.length} customer rows found
+        </p>
+      )}
     </div>
   )
 }
